@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f3f2ee">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="进度">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<title>建筑进度</title>
+<style>
+:root{
+  --bg:#f3f2ee; --card:#ffffff; --ink:#1c1e21; --muted:#6a6e75; --line:#e1dfd8;
+  --accent:#d9730d; --late:#b8321f; --warn:#a86b00; --ok:#2d7a4b;
+  color-scheme:light;
+}
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font-family:"PingFang SC","Noto Sans SC",system-ui,sans-serif;font-size:15px;line-height:1.5}
+#app{position:fixed;inset:0;max-width:640px;margin:0 auto}
+
+#top{position:absolute;top:0;left:0;right:0;height:48px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px;z-index:3;gap:8px}
+#crumb{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbtn{border:1px solid var(--late);color:var(--late);background:var(--card);border-radius:8px;padding:4px 10px;font:inherit;font-size:13px;cursor:pointer}
+#hint{position:absolute;left:12px;bottom:14px;font-size:12px;color:var(--muted);background:var(--card);border:1px solid var(--line);padding:4px 10px;border-radius:999px;z-index:3}
+
+#vp{position:absolute;top:48px;bottom:0;left:0;right:0;overflow:hidden;touch-action:none;cursor:grab;background-color:var(--bg);background-image:radial-gradient(#d6d3c9 1px,transparent 1px);background-size:24px 24px}
+#stage{position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0}
+#stage.anim{transition:transform .35s ease}
+#links{position:absolute;left:0;top:0;overflow:visible}
+#links path{fill:none;stroke:#c4c0b5;stroke-width:3}
+#stage[data-level=overview] #links{display:none}
+#stage[data-level=overview] .tnode{display:none}
+#stage:not([data-level=task]) .t-sub{display:none}
+
+.pnode{position:absolute;background:var(--card);border:2px solid var(--ink);border-radius:18px;padding:22px 24px;box-shadow:0 6px 18px rgba(0,0,0,.08);cursor:pointer}
+.pnode b{display:block;font-size:26px;line-height:1.25;text-wrap:balance}
+.pc{display:flex;gap:22px;margin-top:14px}
+.pc span{font-size:16px;color:var(--muted)}
+.pc em{display:block;font-style:normal;font-size:40px;font-weight:700;color:var(--ink);line-height:1.1}
+.pc .late em{color:var(--late)}
+.pmeta{font-size:16px;color:var(--muted);margin-top:8px}
+
+.tnode{position:absolute;background:var(--card);border:1px solid var(--line);border-left:10px solid #bdb9ae;border-radius:14px;padding:12px 16px;cursor:pointer;overflow:hidden}
+.tnode.late{border-left-color:var(--late)}
+.tnode.today{border-left-color:var(--accent)}
+.tnode.soon{border-left-color:var(--warn)}
+.tnode.done{border-left-color:var(--ok);opacity:.6}
+.tn-name{font-size:22px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t-sub{font-size:16px;color:var(--muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{font-size:12px;padding:1px 8px;border-radius:999px;white-space:nowrap;border:1px solid;background:var(--card)}
+.t-sub .pill{font-size:14px}
+.pill.late{color:var(--late);border-color:var(--late);background:#fbeae6}
+.pill.today{color:var(--accent);border-color:var(--accent);background:#fdf1e4}
+.pill.soon{color:var(--warn);border-color:var(--warn)}
+.pill.done{color:var(--ok);border-color:var(--ok)}
+.pill.future{color:var(--muted);border-color:var(--line)}
+
+#dock{position:absolute;right:12px;bottom:14px;display:flex;flex-direction:column;gap:8px;align-items:flex-end;z-index:3}
+#dock button{min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);font:inherit;font-size:16px;color:var(--ink);cursor:pointer}
+#dock .primary{background:var(--ink);color:#fff;border-color:var(--ink);font-weight:600}
+#dock .lbl{font-size:12px;color:var(--muted);background:var(--card);padding:2px 10px;border-radius:999px;border:1px solid var(--line);text-align:center}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+#detail{position:absolute;inset:0;background:var(--bg);z-index:10;display:flex;flex-direction:column}
+#dhdr{padding:14px 16px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;min-height:52px}
+#dhdr .back{background:none;border:0;font:inherit;font-size:15px;color:var(--accent);padding:6px 0;cursor:pointer}
+#dmain{flex:1;overflow-y:auto;padding:14px 16px 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.muted{color:var(--muted);font-size:13px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:12px 0 0;font-size:14px}
+dt{color:var(--muted)} dd{margin:0}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 12px}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:600;flex:1;cursor:pointer;min-width:120px;text-align:center;text-decoration:none;display:block}
+.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:var(--late)}
+h2{font-size:15px;margin:4px 0 10px}
+.timeline{list-style:none;padding:0 0 0 4px;margin:0;border-left:2px solid var(--line)}
+.timeline li{position:relative;padding:0 0 14px 16px}
+.timeline li::before{content:"";position:absolute;left:-6px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.tdate{display:block;font-size:12px;color:var(--muted)}
+.rs{margin-left:8px;font-size:12px;border:1px solid var(--line);border-radius:4px;padding:0 6px;color:var(--muted)}
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.pthumb{padding:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--bg);cursor:pointer;text-align:left;font:inherit;color:inherit}
+.pthumb img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+.pthumb span{display:block;font-size:11px;color:var(--muted);padding:3px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pthumb .pnote{color:var(--ink);font-size:12px}
+.pick{position:relative;overflow:hidden;cursor:pointer;flex:none;min-width:0;padding:8px 12px;font-size:14px}
+.fileinp{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+
+.scrim{position:absolute;inset:0;background:rgba(20,20,20,.35);z-index:20}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:14px 14px 0 0;padding:10px 16px 18px;max-height:85%;overflow-y:auto;z-index:21;max-width:640px;margin:0 auto}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 12px}
+.sheet h3{margin:0 0 12px;font-size:17px}
+label.fld{display:block;margin-bottom:12px;font-size:14px;color:var(--muted)}
+.fld-l{font-size:14px;color:var(--muted);margin:0 0 4px}
+input,textarea,select{width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff;margin-top:4px;color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
+.chip{position:relative;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:14px;cursor:pointer;background:var(--card)}
+.chip input{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}
+.chip:has(input:checked){background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.err{color:var(--late);font-size:13px;min-height:1.2em;margin:4px 0 0}
+.sheet-btns{display:flex;gap:10px;margin-top:8px}
+
+#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:30;display:flex;flex-direction:column;padding:16px;gap:12px}
+#lightbox .lb-bar{display:flex;justify-content:flex-end}
+#lightbox img{flex:1;min-height:0;width:100%;object-fit:contain}
+#lightbox .lb-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#fff;font-size:14px}
+#lightbox textarea{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.3)}
+#lightbox textarea::placeholder{color:rgba(255,255,255,.6)}
+#lightbox .lb-row{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+#lightbox #lb-confirm p{color:#fff;font-size:14px;margin:0 0 8px}
+.lb-btn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:10px;padding:8px 12px;font:inherit;cursor:pointer}
+.lb-btn.danger{background:var(--late);border-color:var(--late)}
+
+#toast{position:fixed;left:50%;top:60px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 14px;border-radius:10px;font-size:14px;z-index:40;max-width:90%}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top"><span id="crumb">全部项目</span><button id="delproj" class="topbtn" hidden onclick="openDelProject()">删除项目</button></div>
+  <div id="vp" tabindex="-1">
+    <div id="stage" data-level="overview">
+      <svg id="links"></svg>
+      <div id="nodes"></div>
+    </div>
+  </div>
+  <div id="hint">点项目进入 · 点任务放大 · 再点看详情</div>
+  <div id="dock">
+    <button class="primary" onclick="openNew(null)">＋ 新增任务</button>
+    <button onclick="openProject()">＋ 项目</button>
+    <button onclick="openData()">数据</button>
+    <button onclick="zoomBy(1.25)" aria-label="放大">＋</button>
+    <button onclick="zoomBy(0.8)" aria-label="缩小">－</button>
+    <button onclick="fitAll()">总览</button>
+    <span class="lbl" id="lvl">总览</span>
+  </div>
+
+  <section id="detail" hidden>
+    <div id="dhdr"></div>
+    <div id="dmain"></div>
+  </section>
+
+  <div id="lightbox" hidden>
+    <div class="lb-bar"><button class="lb-btn" onclick="closePhoto()">关闭</button></div>
+    <img id="lb-img" alt="现场照片">
+    <div class="lb-nav"><button class="lb-btn" onclick="lbStep(-1)">‹ 上一张</button><span id="lb-info"></span><button class="lb-btn" onclick="lbStep(1)">下一张 ›</button></div>
+    <div class="lb-note">
+      <textarea id="lb-note" rows="2" placeholder="添加文字备注，例如：防水层验收合格"></textarea>
+      <div class="lb-row"><button class="lb-btn" onclick="savePhotoNote()">保存备注</button><button class="lb-btn danger" onclick="askDelete()">删除照片</button></div>
+      <div id="lb-confirm" hidden>
+        <p>确认删除这张照片？照片会被移除，删除操作会记入变更历史。</p>
+        <div class="lb-row"><button class="lb-btn" onclick="cancelDelete()">取消</button><button class="lb-btn danger" onclick="confirmDelete()">确认删除</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scrim" id="scrim" hidden onclick="closeSheet()"></div>
+  <div class="sheet" id="sheet" hidden></div>
+  <div id="toast" hidden></div>
+</div>
+
+<script>
+/* =========================================================
+   本地存储：所有数据保存在手机浏览器的 IndexedDB 中，不需要网络。
+   data：项目、任务、变更历史、照片信息（JSON）
+   photo:<id>：照片文件（Blob）
+   ========================================================= */
+const REASONS = ['天气','材料延误','人员不足','设计/甲方变更','检查未通过','审批','其他'];
+const UNDO_REASONS = ['误点','发现尾项','质量返工','其他'];
+const LABEL = {late:'逾期', today:'今日开始', soon:'即将开始', future:'未开始', done:'已完成'};
+const EXPORT_VERSION = 1;
+
+const pad = n => String(n).padStart(2, '0');
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const nowStr = () => { const d = new Date(); return `${todayISO()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const uid = p => p + Math.random().toString(36).slice(2, 10);
+
+let idbPromise = null;
+function idb(){
+  if (!idbPromise){
+    idbPromise = new Promise((res, rej) => {
+      const r = indexedDB.open('jianzhu-local', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+  }
+  return idbPromise;
+}
+async function kvGet(k){
+  const d = await idb();
+  return new Promise((res, rej) => {
+    const r = d.transaction('kv').objectStore('kv').get(k);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function kvWrite(fn){
+  const d = await idb();
+  return new Promise((res, rej) => {
+    const tx = d.transaction('kv', 'readwrite');
+    fn(tx.objectStore('kv'));
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+    tx.onabort = () => rej(tx.error);
+  });
+}
+const kvPut = (k, v) => kvWrite(s => s.put(v, k));
+const kvDel = k => kvWrite(s => s.delete(k));
+const kvClear = () => kvWrite(s => s.clear());
+
+let DB = {projects: []};
+let projects = [];   // 视图：只包含未删除的项目和任务
+let TODAY = todayISO();
+
+async function persist(){ await kvPut('data', DB); }
+
+function seedDB(){
+  const T = (id, pid, name, parent, planned, current, done, completed, events) => ({
+    id, project_id: pid, name, parent, planned, current, done, completedAt: completed,
+    created_at: '2026-10-25 09:00', deleted_at: null, events, photos: []
+  });
+  const E = (at, title, reason, note) => ({at, title, reason: reason || null, note: note || ''});
+  return {projects: [
+    {id:'p1', name:'东区 3 号楼', created_at:'2026-10-15 09:00', deleted_at:null, tasks:[
+      T('t1','p1','钢筋绑扎（二层）',null,'2026-11-03','2026-11-15',false,null,[
+        E('2026-10-25','创建任务，计划开始 11-03'),
+        E('2026-11-05','日期调整 11-03 → 11-08','材料延误','钢筋到场晚两天'),
+        E('2026-11-12','日期调整 11-08 → 11-15','天气','连续降雨，无法露天作业')]),
+      T('t2','p1','模板安装（二层）',null,'2026-11-10','2026-11-17',false,null,[
+        E('2026-10-25','创建任务，计划开始 11-10'),
+        E('2026-11-09','日期调整 11-10 → 11-17','人员不足','木工班组被调去其他工地')]),
+      T('t3','p1','混凝土浇筑（二层）',null,'2026-11-12','2026-11-19',false,null,[
+        E('2026-10-25','创建任务，计划开始 11-12'),
+        E('2026-11-14','日期调整 11-12 → 11-19','检查未通过','隐蔽工程验收需整改')]),
+      T('t4','p1','水电预埋（一层）',null,'2026-10-20','2026-10-28',true,'2026-10-30',[
+        E('2026-10-15','创建任务，计划开始 10-20'),
+        E('2026-10-20','日期调整 10-20 → 10-28','人员不足','电工队伍调走一周'),
+        E('2026-10-30','标记完成，完成时间 10-30',null,'录入于 2026-10-30')]),
+      T('t5','p1','外墙脚手架',null,'2026-11-25','2026-11-25',false,null,[
+        E('2026-10-25','创建任务，计划开始 11-25')])
+    ]},
+    {id:'p2', name:'西区地下车库', created_at:'2026-10-20 09:00', deleted_at:null, tasks:[
+      T('t6','p2','基坑支护验收',null,'2026-11-10','2026-11-14',true,'2026-11-14',[
+        E('2026-10-30','创建任务，计划开始 11-10'),
+        E('2026-11-08','日期调整 11-10 → 11-14','审批','监理审批延后'),
+        E('2026-11-14','标记完成，完成时间 11-14',null,'录入于 2026-11-14')]),
+      T('t7','p2','土方开挖',null,'2026-11-18','2026-11-18',false,null,[
+        E('2026-11-01','创建任务，计划开始 11-18')])
+    ]},
+    {id:'p3', name:'北区 1 号厂房', created_at:'2026-09-28 09:00', deleted_at:null, tasks:[
+      T('t8','p3','基础放线',null,'2026-10-05','2026-10-05',true,'2026-10-05',[
+        E('2026-09-28','创建任务，计划开始 10-05'),
+        E('2026-10-05','标记完成，完成时间 10-05',null,'录入于 2026-10-05')]),
+      T('t9','p3','地基验收',null,'2026-11-16','2026-11-16',false,null,[
+        E('2026-10-20','创建任务，计划开始 11-16')]),
+      T('t10','p3','设备基础浇筑',null,'2026-11-22','2026-11-22',false,null,[
+        E('2026-10-20','创建任务，计划开始 11-22')])
+    ]}
+  ]};
+}
+
+async function loadLocal(){
+  let d = await kvGet('data');
+  if (!d){ d = seedDB(); DB = d; await persist(); }
+  DB = d;
+  for (const p of DB.projects) for (const t of p.tasks) for (const ph of t.photos){
+    const b = await kvGet('photo:' + ph.id);
+    ph.url = b ? URL.createObjectURL(b) : '';
+  }
+}
+
+/* ---------- 业务操作（与之前的服务器版规则一致） ---------- */
+const short = d => d ? d.slice(5) : '';
+function taskOf(tid){
+  for (const p of DB.projects){
+    const t = p.tasks.find(x => x.id === tid && !x.deleted_at);
+    if (t) return {p, t};
+  }
+  return {p:null, t:null};
+}
+function needTask(tid){
+  const r = taskOf(tid);
+  if (!r.t) throw new Error('任务不存在');
+  return r;
+}
+function photoOf(pid){
+  for (const p of DB.projects) for (const t of p.tasks) {
+    const ph = t.photos.find(x => x.id === pid);
+    if (ph && !t.deleted_at) return {t, ph};
+  }
+  return {t:null, ph:null};
+}
+function subtreeOf(p, tid){
+  const out = [tid];
+  p.tasks.filter(x => x.parent === tid && !x.deleted_at).forEach(k => out.push(...subtreeOf(p, k.id)));
+  return out;
+}
+
+function createProject(name){
+  name = name.trim();
+  if (!name) throw new Error('请输入项目名称');
+  const p = {id: uid('p'), name, created_at: nowStr(), deleted_at: null, tasks: []};
+  DB.projects.push(p);
+  return p.id;
+}
+function createTask({project_id, name, planned, parent_id}){
+  name = name.trim();
+  if (!name) throw new Error('请输入任务名称');
+  if (!planned) throw new Error('请选择计划开始日期');
+  const p = DB.projects.find(x => x.id === project_id && !x.deleted_at);
+  if (!p) throw new Error('项目不存在');
+  let title = `创建任务，计划开始 ${short(planned)}`;
+  if (parent_id){
+    const {t: parent} = needTask(parent_id);
+    title = `创建后续任务，接续「${parent.name}」，计划开始 ${short(planned)}`;
+  }
+  const t = {id: uid('t'), project_id, name, parent: parent_id || null, planned, current: planned,
+    done: false, completedAt: null, created_at: nowStr(), deleted_at: null,
+    events: [{at: TODAY, title}], photos: []};
+  p.tasks.push(t);
+  return t.id;
+}
+function changeDate(tid, {new_date, reason, note}){
+  const {t} = needTask(tid);
+  if (!new_date) throw new Error('请选择新日期');
+  if (!REASONS.includes(reason)) throw new Error('请选择调整原因');
+  if (new_date === t.current) throw new Error('新日期与当前安排相同');
+  t.events.push({at: TODAY, title: `日期调整 ${short(t.current)} → ${short(new_date)}`, reason, note: (note || '').trim()});
+  t.current = new_date;
+}
+function completeTask(tid, {completed_on, time}){
+  const {t} = needTask(tid);
+  if (!completed_on) throw new Error('请选择完成日期');
+  if (t.done) throw new Error('任务已经是完成状态');
+  t.events.push({at: completed_on, title: `标记完成，完成时间 ${short(completed_on)}${time ? ' ' + time : ''}`, reason: null, note: `录入于 ${TODAY}`});
+  t.done = true;
+  t.completedAt = completed_on;
+}
+function undoTask(tid, {reason, note}){
+  const {t} = needTask(tid);
+  if (!UNDO_REASONS.includes(reason)) throw new Error('请选择撤销原因');
+  if (!t.done) throw new Error('任务尚未完成');
+  t.events.push({at: TODAY, title: `撤销完成（原完成时间 ${short(t.completedAt)}）`, reason, note: (note || '').trim()});
+  t.done = false;
+  t.completedAt = null;
+}
+function deleteTask(tid){
+  const {p, t: root} = needTask(tid);
+  for (const x of subtreeOf(p, tid)){
+    const t = p.tasks.find(y => y.id === x);
+    t.events.push({at: TODAY, title: `删除任务「${t.name}」`, reason: null,
+      note: x === tid ? '' : `作为「${root.name}」的后续任务一并删除`});
+    t.deleted_at = nowStr();
+  }
+}
+function deleteProject(pid){
+  const p = DB.projects.find(x => x.id === pid && !x.deleted_at);
+  if (!p) throw new Error('项目不存在');
+  for (const t of p.tasks){
+    if (t.deleted_at) continue;
+    t.events.push({at: TODAY, title: `所属项目「${p.name}」已删除`, reason: null, note: ''});
+    t.deleted_at = nowStr();
+  }
+  p.deleted_at = nowStr();
+}
+async function addPhoto(tid, file){
+  const {t} = needTask(tid);
+  const id = uid('ph');
+  await kvPut('photo:' + id, file);
+  t.photos.push({id, name: file.name || '照片', at: TODAY,
+    status: t.done ? '已完成后补充' : '进行中', note: '', url: URL.createObjectURL(file)});
+}
+function patchPhoto(pid, note){
+  const {t, ph} = photoOf(pid);
+  if (!ph) throw new Error('照片不存在');
+  note = (note || '').trim();
+  if (note === (ph.note || '')) return false;
+  ph.note = note;
+  t.events.push({at: TODAY, title: `修改照片「${ph.name}」备注`, reason: null, note: note || '（已清空）'});
+  return true;
+}
+async function deletePhoto(pid){
+  const {t, ph} = photoOf(pid);
+  if (!ph) throw new Error('照片不存在');
+  t.photos = t.photos.filter(x => x.id !== pid);
+  t.events.push({at: TODAY, title: `删除现场照片「${ph.name}」`, reason: null, note: ph.note ? `原备注：${ph.note}` : ''});
+  await kvDel('photo:' + pid);
+}
+
+/* ---------- 导出与导入（JSON，照片以 base64 放在文件里） ---------- */
+function blobToDataURL(b){
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(b);
+  });
+}
+async function exportData(){
+  const photos = {};
+  for (const p of DB.projects) for (const t of p.tasks) for (const ph of t.photos){
+    const b = await kvGet('photo:' + ph.id);
+    if (b) photos[ph.id] = await blobToDataURL(b);
+  }
+  const data = {format: 'jianzhu-app', version: EXPORT_VERSION, exported_at: nowStr(),
+    projects: DB.projects, photos};
+  const text = JSON.stringify(data, (k, v) => k === 'url' ? undefined : v);
+  const url = URL.createObjectURL(new Blob([text], {type: 'application/json'}));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `jindu-backup-${todayISO()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+async function importData(file){
+  let data;
+  try { data = JSON.parse(await file.text()); }
+  catch(e){ throw new Error('备份文件无法读取'); }
+  if (data.format !== 'jianzhu-app' || data.version !== EXPORT_VERSION)
+    throw new Error('不是本应用导出的备份文件');
+  await kvClear();
+  for (const [id, dataUrl] of Object.entries(data.photos || {})){
+    const b = await (await fetch(dataUrl)).blob();
+    await kvPut('photo:' + id, b);
+  }
+  DB = {projects: data.projects || []};
+  await persist();
+  await loadPhotoUrls();
+}
+async function loadPhotoUrls(){
+  for (const p of DB.projects) for (const t of p.tasks) for (const ph of t.photos){
+    const b = await kvGet('photo:' + ph.id);
+    ph.url = b ? URL.createObjectURL(b) : '';
+  }
+}
+
+/* =========================================================
+   界面
+   ========================================================= */
+const PW = 300, PH = 180;
+const TW = 280, TH = 84;
+const GX = 90, GY = 28, ROWGAP = 160;
+
+let state = {pid:null, tid:null, focus:null, detail:false};
+let newParent = null;
+let lb = null;
+const T = {x:0, y:0, s:0.4};
+let worldW = 0, worldH = 0, animT = null;
+let booted = false;
+
+const $ = s => document.querySelector(s);
+const days = (a,b) => Math.round((new Date(a+'T00:00') - new Date(b+'T00:00')) / 864e5);
+
+function statusOf(t){
+  if (t.done) return 'done';
+  const d = days(t.current, TODAY);
+  if (d < 0) return 'late';
+  if (d === 0) return 'today';
+  if (d <= 3) return 'soon';
+  return 'future';
+}
+function dev(t){
+  if (!t.done) return '';
+  const d = days(t.completedAt, t.current);
+  if (d === 0) return '按期完成';
+  return d < 0 ? `提前 ${-d} 天` : `延后 ${d} 天`;
+}
+const pill = s => `<span class="pill ${s}">${LABEL[s]}</span>`;
+const find = (pid, tid) => {
+  const p = projects.find(x => x.id === pid);
+  return {p, t: p && p.tasks.find(x => x.id === tid)};
+};
+const err = msg => { const e = $('#err'); if (e) e.textContent = msg; };
+const checked = name => document.querySelector(`input[name=${name}]:checked`);
+const chips = (name, list) => `<div class="chips">${list.map(r =>
+  `<label class="chip"><input type="radio" name="${name}" value="${r}">${r}</label>`).join('')}</div>`;
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function toast(msg){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => { t.hidden = true; }, 2600);
+}
+
+/* 视图：只包含未删除的项目与任务 */
+function buildView(){
+  projects = DB.projects.filter(p => !p.deleted_at).map(p => ({
+    ...p, tasks: p.tasks.filter(t => !t.deleted_at)
+  }));
+}
+
+function placeTree(p, t, col, y){
+  t.x = PW + GX + col*(TW+GX);
+  t.y = y;
+  const kids = p.tasks.filter(c => c.parent === t.id)
+    .sort((a,b) => a.current.localeCompare(b.current));
+  let cy = y;
+  kids.forEach(k => { const kh = placeTree(p, k, col+1, cy); cy += kh + GY; });
+  return Math.max(TH, cy - GY - y);
+}
+function layout(){
+  let rowY = 0;
+  projects.forEach(p => {
+    const roots = p.tasks.filter(t => !t.parent)
+      .sort((a,b) => a.current.localeCompare(b.current));
+    let y = rowY;
+    roots.forEach(r => { y += placeTree(p, r, 0, y) + GY; });
+    const bandH = roots.length ? y - GY - rowY : 0;
+    p.h = Math.max(PH, bandH);
+    p.x = 0;
+    p.y = rowY + (p.h - PH) / 2;
+    const off = (p.h - bandH) / 2;
+    p.tasks.forEach(t => { t.y += off; });
+    p.top = rowY;
+    p.w = Math.max(PW, ...p.tasks.map(t => t.x + TW));
+    rowY += p.h + ROWGAP;
+  });
+  worldW = projects.length ? Math.max(...projects.map(p => p.w)) : PW;
+  worldH = Math.max(PH, rowY - ROWGAP);
+}
+
+function renderStage(){
+  const links = $('#links');
+  links.setAttribute('width', worldW);
+  links.setAttribute('height', worldH);
+  links.innerHTML = projects.flatMap(p => p.tasks.map(t => {
+    const parent = t.parent ? p.tasks.find(x => x.id === t.parent) : null;
+    const x1 = parent ? parent.x + TW : p.x + PW;
+    const y1 = parent ? parent.y + TH/2 : p.y + PH/2;
+    const x2 = t.x, y2 = t.y + TH/2, mx = (x1+x2)/2;
+    return `<path d="M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}"/>`;
+  })).join('');
+
+  const projNodes = projects.map(p => {
+    const open = p.tasks.filter(t => !t.done);
+    const c = s => open.filter(t => statusOf(t) === s).length;
+    const soon = open.filter(t => { const d = days(t.current, TODAY); return d > 0 && d <= 3; }).length;
+    return `<div class="pnode" role="button" tabindex="0" data-node="p" data-id="${p.id}"
+        style="left:${p.x}px;top:${p.y}px;width:${PW}px;height:${PH}px;${p.id===state.focus?'border-color:var(--accent)':''}">
+      <b>${escapeHtml(p.name)}</b>
+      <div class="pc">
+        <span class="${c('late')?'late':''}"><em>${c('late')}</em>逾期</span>
+        <span><em>${c('today')}</em>今日</span>
+        <span><em>${soon}</em>3 天内</span>
+      </div>
+      <div class="pmeta">${open.length} 项进行中 · ${p.tasks.length-open.length} 项已完成</div>
+    </div>`;
+  }).join('');
+
+  const taskNodes = projects.flatMap(p => p.tasks.map(t => {
+    const s = statusOf(t);
+    const sub = t.done
+      ? `${pill(s)} 完成 ${short(t.completedAt)} · ${dev(t)}`
+      : `${pill(s)} 安排 ${short(t.current)} · 原计划 ${short(t.planned)}`;
+    return `<div class="tnode ${s}" role="button" tabindex="0" data-node="t" data-id="${t.id}" data-p="${p.id}"
+        style="left:${t.x}px;top:${t.y}px;width:${TW}px;height:${TH}px">
+      <div class="tn-name">${escapeHtml(t.name)}</div>
+      <div class="t-sub">${sub}</div>
+    </div>`;
+  })).join('');
+
+  $('#nodes').innerHTML = projNodes + taskNodes;
+}
+
+function refresh(){
+  buildView();
+  layout();
+  renderStage();
+  if (state.detail) renderDetail();
+  apply();
+}
+
+const vp = $('#vp'), stage = $('#stage');
+function apply(){
+  const lvl = T.s < 0.55 ? 'overview' : T.s < 1.15 ? 'project' : 'task';
+  stage.dataset.level = lvl;
+  stage.style.transform = `translate(${T.x}px,${T.y}px) scale(${T.s})`;
+  $('#lvl').textContent = {overview:'总览', project:'项目', task:'任务'}[lvl];
+  const f = state.focus && projects.find(x => x.id === state.focus);
+  $('#crumb').textContent = f ? f.name : '全部项目';
+  $('#delproj').hidden = !f;
+}
+function animateTo(x, y, s){
+  stage.classList.add('anim');
+  T.x = x; T.y = y; T.s = s;
+  apply();
+  clearTimeout(animT);
+  animT = setTimeout(() => stage.classList.remove('anim'), 380);
+}
+function zoomAt(ns, m){
+  ns = Math.min(2.2, Math.max(0.25, ns));
+  const wx = (m.x - T.x) / T.s, wy = (m.y - T.y) / T.s;
+  T.s = ns; T.x = m.x - wx*ns; T.y = m.y - wy*ns;
+  apply();
+}
+function zoomBy(f){
+  const r = vp.getBoundingClientRect();
+  const ns = Math.min(2.2, Math.max(0.25, T.s*f));
+  const m = {x:r.width/2, y:r.height/2};
+  const wx = (m.x - T.x) / T.s, wy = (m.y - T.y) / T.s;
+  animateTo(m.x - wx*ns, m.y - wy*ns, ns);
+}
+function fitAll(){
+  state.focus = null;
+  const r = vp.getBoundingClientRect();
+  const s = Math.min(r.width/(worldW+40), r.height/(worldH+40), 0.5);
+  animateTo((r.width - worldW*s)/2, (r.height - worldH*s)/2, s);
+}
+function zoomToProject(pid){
+  const p = projects.find(x => x.id === pid);
+  if (!p) return;
+  state.focus = pid;
+  const r = vp.getBoundingClientRect();
+  const s = Math.min(1, Math.max(0.56, r.width*0.96/p.w));
+  animateTo(16, r.height/2 - (p.top + p.h/2)*s, s);
+}
+function zoomToTask(pid, t){
+  state.focus = pid;
+  const r = vp.getBoundingClientRect();
+  const s = 1.3;
+  animateTo(r.width/2 - (t.x + TW/2)*s, r.height/2 - (t.y + TH/2)*s, s);
+}
+
+const ptr = new Map();
+let drag = null, pinch = null;
+const local = (x,y) => { const r = vp.getBoundingClientRect(); return {x:x-r.left, y:y-r.top}; };
+const dist = (a,b) => Math.hypot(a.x-b.x, a.y-b.y);
+const mid = (a,b) => ({x:(a.x+b.x)/2, y:(a.y+b.y)/2});
+
+vp.addEventListener('pointerdown', e => {
+  vp.setPointerCapture(e.pointerId);
+  const p = local(e.clientX, e.clientY);
+  ptr.set(e.pointerId, p);
+  clearTimeout(animT);
+  stage.classList.remove('anim');
+  if (ptr.size === 1){
+    drag = {x:p.x, y:p.y, tx:T.x, ty:T.y, moved:false, node:e.target.closest('[data-node]')};
+    pinch = null;
+  } else if (ptr.size === 2){
+    const [a,b] = [...ptr.values()], m = mid(a,b);
+    pinch = {d:dist(a,b), s:T.s, wx:(m.x-T.x)/T.s, wy:(m.y-T.y)/T.s};
+    drag = null;
+  }
+});
+vp.addEventListener('pointermove', e => {
+  if (!ptr.has(e.pointerId)) return;
+  const p = local(e.clientX, e.clientY);
+  ptr.set(e.pointerId, p);
+  if (ptr.size === 1 && drag){
+    const dx = p.x - drag.x, dy = p.y - drag.y;
+    if (Math.hypot(dx,dy) > 6) drag.moved = true;
+    T.x = drag.tx + dx; T.y = drag.ty + dy;
+    apply();
+  } else if (ptr.size === 2 && pinch){
+    const [a,b] = [...ptr.values()], m = mid(a,b);
+    const ns = Math.min(2.2, Math.max(0.25, pinch.s * dist(a,b) / pinch.d));
+    T.s = ns; T.x = m.x - pinch.wx*ns; T.y = m.y - pinch.wy*ns;
+    apply();
+  }
+});
+function up(e){
+  if (!ptr.has(e.pointerId)) return;
+  const wasSingle = ptr.size === 1;
+  ptr.delete(e.pointerId);
+  if (wasSingle && drag && !drag.moved){
+    const el = drag.node;
+    drag = null;
+    if (el) tap(el);
+  } else if (ptr.size === 1){
+    const p = [...ptr.values()][0];
+    drag = {x:p.x, y:p.y, tx:T.x, ty:T.y, moved:true, node:null};
+  }
+  if (ptr.size === 0){ drag = null; pinch = null; }
+}
+vp.addEventListener('pointerup', up);
+vp.addEventListener('pointercancel', up);
+vp.addEventListener('wheel', e => {
+  e.preventDefault();
+  zoomAt(T.s * Math.exp(-e.deltaY * 0.0015), local(e.clientX, e.clientY));
+}, {passive:false});
+vp.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.dataset && e.target.dataset.node) tap(e.target);
+});
+
+function tap(el){
+  const id = el.dataset.id;
+  if (el.dataset.node === 'p'){ zoomToProject(id); return; }
+  const {t} = find(el.dataset.p, id);
+  if (!t) return;
+  if (T.s < 1.15) zoomToTask(el.dataset.p, t);
+  else openDetail(el.dataset.p, id);
+}
+
+/* ---------- 任务详情 ---------- */
+function openDetail(pid, tid){
+  state.pid = pid; state.tid = tid; state.detail = true;
+  $('#detail').hidden = false;
+  renderDetail();
+}
+function closeDetail(){
+  state.detail = false;
+  $('#detail').hidden = true;
+}
+function photoSection(t){
+  const ph = t.photos || [];
+  const grid = ph.length
+    ? `<div class="pgrid">${ph.map((p,i) => `<button class="pthumb" onclick="openPhoto('${t.id}',${i})" aria-label="预览现场照片 ${i+1}">
+         <img src="${p.url}" alt=""><span>${p.at} · ${p.status}</span>${p.note ? `<span class="pnote">${escapeHtml(p.note)}</span>` : ''}</button>`).join('')}</div>`
+    : '<p class="muted">还没有现场照片。</p>';
+  return `<section class="card">
+    <div class="row"><b>现场照片（${ph.length}）</b>
+      <label class="btn ghost pick">＋ 添加图片<input class="fileinp" type="file" accept="image/*" multiple onchange="addPhotos(event)"></label>
+    </div>${grid}</section>`;
+}
+function renderDetail(){
+  const {p, t} = find(state.pid, state.tid);
+  if (!t){ closeDetail(); return; }
+  $('#dhdr').innerHTML = `<button class="back" onclick="closeDetail()">‹ 地图</button><span class="muted">${escapeHtml(p.name)}</span>`;
+  const s = statusOf(t);
+  const actions = t.done
+    ? `<button class="btn ghost" onclick="openUndo()">撤销完成</button>
+       <button class="btn" onclick="openNew('${t.id}')">＋ 新增后续任务</button>`
+    : `<button class="btn ghost" onclick="openAdjust()">调整日期</button>
+       <button class="btn" onclick="openComplete()">标记完成</button>`;
+  const prev = t.parent ? p.tasks.find(x => x.id === t.parent) : null;
+  const tl = t.events.map(e => `<li>
+      <span class="tdate">${e.at}</span>
+      <div><b>${escapeHtml(e.title)}</b>${e.reason ? `<span class="rs">${escapeHtml(e.reason)}</span>` : ''}</div>
+      ${e.note ? `<div class="muted">${escapeHtml(e.note)}</div>` : ''}</li>`).join('');
+  $('#dmain').innerHTML = `
+    <section class="card">
+      <div class="row"><b>${escapeHtml(t.name)}</b>${pill(s)}</div>
+      <dl class="kv">
+        <dt>原始计划开始</dt><dd>${t.planned}</dd>
+        <dt>当前安排开始</dt><dd>${t.current}</dd>
+        ${prev ? `<dt>接续于</dt><dd>${escapeHtml(prev.name)}</dd>` : ''}
+        ${t.done ? `<dt>完成时间</dt><dd>${t.completedAt}（${dev(t)}）</dd>` : ''}
+      </dl>
+    </section>
+    ${photoSection(t)}
+    <div class="actions">${actions}</div>
+    <div class="actions"><button class="btn ghost" style="color:var(--late)" onclick="openDelTask()">删除任务</button></div>
+    <h2>变更历史</h2>
+    <ol class="timeline">${tl}</ol>`;
+}
+
+/* ---------- 弹层 ---------- */
+function sheet(title, body, onsave, label = '保存', danger = false){
+  $('#sheet').innerHTML = `<div class="grab"></div><h3>${title}</h3>${body}
+    <p class="err" id="err"></p>
+    <div class="sheet-btns">
+      <button class="btn ghost" onclick="closeSheet()">取消</button>
+      <button class="btn${danger ? ' danger' : ''}" onclick="${onsave}">${label}</button>
+    </div>`;
+  $('#scrim').hidden = false;
+  $('#sheet').hidden = false;
+}
+function closeSheet(){ $('#scrim').hidden = true; $('#sheet').hidden = true; }
+
+/* 执行一次修改：成功则保存、关闭弹层并刷新；失败则在弹层里显示原因 */
+async function commit(action, afterOk){
+  try{
+    action();
+    await persist();
+    closeSheet();
+    refresh();
+    if (afterOk) afterOk();
+  } catch(e){ err(e.message); }
+}
+
+function openAdjust(){
+  const {t} = find(state.pid, state.tid);
+  sheet('调整日期', `
+    <label class="fld">新的开始日期<input type="date" id="f-date" value="${t.current}"></label>
+    <p class="fld-l">调整原因（必选）</p>${chips('reason', REASONS)}
+    <label class="fld">补充说明<textarea id="f-note" rows="2" placeholder="例如：钢筋到场晚两天"></textarea></label>`,
+    'saveAdjust()');
+}
+function saveAdjust(){
+  const d = $('#f-date').value, r = checked('reason'), note = $('#f-note').value;
+  if (!r) return err('请选择调整原因');
+  commit(() => changeDate(state.tid, {new_date: d, reason: r.value, note}));
+}
+
+function openComplete(){
+  sheet('标记完成', `
+    <label class="fld">实际完成日期<input type="date" id="f-date" value="${TODAY}"></label>
+    <label class="fld">完成时间（可选）<input type="time" id="f-time"></label>
+    <p class="muted">保存后任务将移出逾期与提醒，历史中保留此记录。</p>`,
+    'saveComplete()', '确认完成');
+}
+function saveComplete(){
+  commit(() => completeTask(state.tid, {completed_on: $('#f-date').value, time: $('#f-time').value}));
+}
+
+function openUndo(){
+  sheet('撤销完成', `
+    <p class="fld-l">撤销原因（必选）</p>${chips('reason', UNDO_REASONS)}
+    <label class="fld">补充说明<textarea id="f-note" rows="2"></textarea></label>`,
+    'saveUndo()', '确认撤销');
+}
+function saveUndo(){
+  const r = checked('reason');
+  if (!r) return err('请选择撤销原因');
+  commit(() => undoTask(state.tid, {reason: r.value, note: $('#f-note').value}));
+}
+
+function openNew(parentId){
+  newParent = parentId;
+  if (!projects.length){ toast('请先新建一个项目'); openProject(); return; }
+  let body, title;
+  const pid = state.focus || projects[0].id;
+  if (parentId){
+    const {t} = needView(parentId);
+    title = '新增后续任务';
+    body = `<p class="muted">接续于「${escapeHtml(t.name)}」，将显示在它的右侧一格。</p>
+      <label class="fld">任务名称<input id="f-name" placeholder="例如：砌砖墙（一层）"></label>
+      <label class="fld">计划开始日期<input type="date" id="f-date" value="${t.completedAt || TODAY}"></label>`;
+  } else {
+    title = '新增任务';
+    body = `<label class="fld">所属项目<select id="f-proj">${projects.map(p =>
+      `<option value="${p.id}" ${p.id===pid?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select></label>
+      <label class="fld">任务名称<input id="f-name" placeholder="例如：砌砖墙（一层）"></label>
+      <label class="fld">计划开始日期<input type="date" id="f-date" value="${TODAY}"></label>`;
+  }
+  sheet(title, body, 'saveNew()', '添加');
+}
+function needView(tid){
+  const {p, t} = taskOf(tid);
+  if (!t) throw new Error('任务不存在');
+  return {p, t};
+}
+function saveNew(){
+  const parent = newParent;
+  const name = $('#f-name').value, planned = $('#f-date').value;
+  const pid = parent ? needView(parent).p.id : $('#f-proj').value;
+  let newId = null;
+  commit(() => { newId = createTask({project_id: pid, name, planned, parent_id: parent}); },
+    () => { if (parent) closeDetail(); zoomToProject(pid); });
+}
+
+function openProject(){
+  sheet('新建项目', `<label class="fld">项目名称<input id="f-name" placeholder="例如：南区 2 号楼"></label>`,
+    'saveProject()', '创建');
+}
+function saveProject(){
+  let id = null;
+  commit(() => { id = createProject($('#f-name').value); }, () => zoomToProject(id));
+}
+
+function openDelTask(){
+  const {p, t} = find(state.pid, state.tid);
+  const n = subtreeOf(p, t.id).length - 1;
+  sheet('删除任务', `<p>将从地图中删除「${escapeHtml(t.name)}」${n ? `，以及它之后的 ${n} 个后续任务` : ''}。</p>
+    <p class="muted">删除后不会出现在地图和提醒中，历史记录仍保留在本机数据中。</p>`,
+    'confirmDelTask()', '确认删除', true);
+}
+function confirmDelTask(){
+  commit(() => deleteTask(state.tid), () => { closeDetail(); toast('任务已删除'); });
+}
+function openDelProject(){
+  const p = projects.find(x => x.id === state.focus);
+  if (!p) return;
+  sheet('删除项目', `<p>将从地图中删除「${escapeHtml(p.name)}」及其 ${p.tasks.length} 个任务。</p>
+    <p class="muted">删除后不会出现在地图和提醒中，历史记录仍保留在本机数据中。</p>`,
+    'confirmDelProject()', '确认删除', true);
+}
+function confirmDelProject(){
+  const pid = state.focus;
+  commit(() => deleteProject(pid), () => { state.focus = null; fitAll(); toast('项目已删除'); });
+}
+
+/* ---------- 数据备份与导入 ---------- */
+function openData(){
+  sheet('数据备份', `
+    <p class="muted">所有数据都保存在这部手机的浏览器里，不需要网络。建议定期导出一份备份。</p>
+    <button class="btn" onclick="doExport()" style="margin-bottom:18px">导出全部数据</button>
+    <p class="fld-l">导入备份文件（会覆盖当前全部数据）</p>
+    <input type="file" id="f-import" accept=".json,application/json">
+    <label class="fld" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="f-ok" style="width:auto;margin:0">我知道会覆盖当前全部数据</label>`,
+    'doImport()', '导入并覆盖', true);
+}
+async function doExport(){
+  try { await exportData(); toast('已生成备份文件'); }
+  catch(e){ toast('导出失败：' + e.message); }
+}
+async function doImport(){
+  const f = $('#f-import').files[0];
+  if (!f) return err('请先选择备份文件');
+  if (!$('#f-ok').checked) return err('请勾选确认框');
+  try{
+    await importData(f);
+    closeSheet();
+    state.focus = null;
+    closeDetail();
+    refresh();
+    fitAll();
+    toast('数据已导入');
+  } catch(e){ err(e.message); }
+}
+
+/* ---------- 照片 ---------- */
+async function addPhotos(e){
+  const files = [...e.target.files].filter(f => f.type.startsWith('image/'));
+  e.target.value = '';
+  if (!files.length) return;
+  try{
+    for (const f of files) await addPhoto(state.tid, f);
+    await persist();
+    toast(`已添加 ${files.length} 张照片`);
+    await loadPhotoUrls();
+    refresh();
+  } catch(err){ toast(err.message); }
+}
+function openPhoto(tid, i){
+  lb = {tid, i};
+  showPhoto();
+  $('#lightbox').hidden = false;
+}
+function currentPhoto(){
+  const {t} = taskOf(lb.tid);
+  return t ? t.photos[lb.i] : null;
+}
+function showPhoto(){
+  const p = currentPhoto();
+  if (!p){ closePhoto(); return; }
+  const {t} = taskOf(lb.tid);
+  $('#lb-img').src = p.url;
+  $('#lb-note').value = p.note || '';
+  $('#lb-confirm').hidden = true;
+  $('#lb-info').textContent = `${p.at} · ${p.status} · ${lb.i+1} / ${t.photos.length}`;
+}
+function lbStep(d){
+  const {t} = taskOf(lb.tid);
+  if (!t || !t.photos.length) return;
+  lb.i = (lb.i + d + t.photos.length) % t.photos.length;
+  showPhoto();
+}
+function closePhoto(){ $('#lightbox').hidden = true; }
+async function savePhotoNote(){
+  const p = currentPhoto();
+  if (!p) return;
+  try{
+    const changed = patchPhoto(p.id, $('#lb-note').value);
+    if (!changed){ toast('备注没有变化'); return; }
+    await persist();
+    toast('备注已保存');
+    refresh();
+    showPhoto();
+  } catch(e){ toast(e.message); }
+}
+function askDelete(){ $('#lb-confirm').hidden = false; }
+function cancelDelete(){ $('#lb-confirm').hidden = true; }
+async function confirmDelete(){
+  const p = currentPhoto();
+  if (!p) return;
+  try{
+    await deletePhoto(p.id);
+    await persist();
+    toast('照片已删除，已记入变更历史');
+    refresh();
+    const {t} = taskOf(lb.tid);
+    if (!t || !t.photos.length){ closePhoto(); return; }
+    lb.i = Math.min(lb.i, t.photos.length - 1);
+    showPhoto();
+  } catch(e){ toast(e.message); }
+}
+
+/* ---------- 启动 ---------- */
+(async function start(){
+  try{
+    await loadLocal();
+    refresh();
+    if (!booted){ booted = true; fitAll(); }
+  } catch(e){
+    toast('本地数据无法打开：' + e.message);
+  }
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
