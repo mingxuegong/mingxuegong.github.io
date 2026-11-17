@@ -12,7 +12,7 @@
 <style>
 :root{
   --bg:#f3f2ee; --card:#ffffff; --ink:#1c1e21; --muted:#6a6e75; --line:#e1dfd8;
-  --accent:#d9730d; --late:#b8321f; --warn:#a86b00; --ok:#2d7a4b;
+  --accent:#d9730d; --late:#b8321f; --warn:#a86b00; --ok:#2d7a4b; --unk:#8a8fa0;
   color-scheme:light;
 }
 [hidden]{display:none!important}
@@ -21,9 +21,13 @@ html,body{height:100%;margin:0;overflow:hidden}
 body{background:var(--bg);color:var(--ink);font-family:"PingFang SC","Noto Sans SC",system-ui,sans-serif;font-size:15px;line-height:1.5}
 #app{position:fixed;inset:0;max-width:640px;margin:0 auto}
 
-#top{position:absolute;top:0;left:0;right:0;height:48px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px;z-index:3;gap:8px}
+#top{position:absolute;top:0;left:0;right:0;height:48px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 12px 0 16px;z-index:3;gap:8px}
 #crumb{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .topbtn{border:1px solid var(--late);color:var(--late);background:var(--card);border-radius:8px;padding:4px 10px;font:inherit;font-size:13px;cursor:pointer}
+.topbtn.ink{border-color:var(--ink);color:var(--ink)}
+.bulb{position:relative;border:0;background:none;padding:6px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;color:var(--muted);cursor:pointer}
+.bulb.on{color:var(--warn)}
+.badge{position:absolute;top:0;right:0;background:var(--late);color:#fff;font-size:11px;font-weight:600;min-width:18px;height:18px;line-height:18px;border-radius:9px;text-align:center;padding:0 4px}
 #hint{position:absolute;left:12px;bottom:14px;font-size:12px;color:var(--muted);background:var(--card);border:1px solid var(--line);padding:4px 10px;border-radius:999px;z-index:3}
 
 #vp{position:absolute;top:48px;bottom:0;left:0;right:0;overflow:hidden;touch-action:none;cursor:grab;background-color:var(--bg);background-image:radial-gradient(#d6d3c9 1px,transparent 1px);background-size:24px 24px}
@@ -31,8 +35,6 @@ body{background:var(--bg);color:var(--ink);font-family:"PingFang SC","Noto Sans 
 #stage.anim{transition:transform .35s ease}
 #links{position:absolute;left:0;top:0;overflow:visible}
 #links path{fill:none;stroke:#c4c0b5;stroke-width:3}
-#stage[data-level=overview] #links{display:none}
-#stage[data-level=overview] .tnode{display:none}
 #stage:not([data-level=task]) .t-sub{display:none}
 
 .pnode{position:absolute;background:var(--card);border:2px solid var(--ink);border-radius:18px;padding:22px 24px;box-shadow:0 6px 18px rgba(0,0,0,.08);cursor:pointer}
@@ -47,6 +49,7 @@ body{background:var(--bg);color:var(--ink);font-family:"PingFang SC","Noto Sans 
 .tnode.late{border-left-color:var(--late)}
 .tnode.today{border-left-color:var(--accent)}
 .tnode.soon{border-left-color:var(--warn)}
+.tnode.undated{border-left-color:var(--unk);border-left-style:dashed}
 .tnode.done{border-left-color:var(--ok);opacity:.6}
 .tn-name{font-size:22px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .t-sub{font-size:16px;color:var(--muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -57,6 +60,7 @@ body{background:var(--bg);color:var(--ink);font-family:"PingFang SC","Noto Sans 
 .pill.soon{color:var(--warn);border-color:var(--warn)}
 .pill.done{color:var(--ok);border-color:var(--ok)}
 .pill.future{color:var(--muted);border-color:var(--line)}
+.pill.undated{color:var(--muted);border-color:var(--unk)}
 
 #dock{position:absolute;right:12px;bottom:14px;display:flex;flex-direction:column;gap:8px;align-items:flex-end;z-index:3}
 #dock button{min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);font:inherit;font-size:16px;color:var(--ink);cursor:pointer}
@@ -96,8 +100,11 @@ h2{font-size:15px;margin:4px 0 10px}
 .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 12px}
 .sheet h3{margin:0 0 12px;font-size:17px}
 label.fld{display:block;margin-bottom:12px;font-size:14px;color:var(--muted)}
+.tbd{display:flex;align-items:center;gap:8px;color:var(--ink);margin:-4px 0 14px;font-size:14px}
+.tbd input{width:18px;height:18px;padding:0;margin:0}
 .fld-l{font-size:14px;color:var(--muted);margin:0 0 4px}
 input,textarea,select{width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff;margin-top:4px;color:var(--ink)}
+input:disabled{background:var(--bg);color:var(--muted)}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
 .chip{position:relative;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:14px;cursor:pointer;background:var(--card)}
 .chip input{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}
@@ -105,6 +112,10 @@ input,textarea,select{width:100%;font:inherit;padding:10px;border:1px solid var(
 .chip:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 .err{color:var(--late);font-size:13px;min-height:1.2em;margin:4px 0 0}
 .sheet-btns{display:flex;gap:10px;margin-top:8px}
+.sortrow{padding:8px 0;border-bottom:1px solid var(--line)}
+.mini{border:1px solid var(--line);background:var(--card);border-radius:8px;min-width:44px;min-height:40px;font:inherit;margin-left:6px;cursor:pointer}
+.mini:disabled{opacity:.35;cursor:default}
+.rem{display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;font:inherit;cursor:pointer;color:var(--ink)}
 
 #lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:30;display:flex;flex-direction:column;padding:16px;gap:12px}
 #lightbox .lb-bar{display:flex;justify-content:flex-end}
@@ -122,7 +133,15 @@ input,textarea,select{width:100%;font:inherit;padding:10px;border:1px solid var(
 </head>
 <body>
 <div id="app">
-  <div id="top"><span id="crumb">全部项目</span><button id="delproj" class="topbtn" hidden onclick="openDelProject()">删除项目</button></div>
+  <div id="top">
+    <span id="crumb">全部项目</span>
+    <button id="sortbtn" class="topbtn ink" hidden onclick="openSort()">排序</button>
+    <button id="delproj" class="topbtn" hidden onclick="openDelProject()">删除项目</button>
+    <button id="bulb" class="bulb" onclick="openReminders()" aria-label="提醒">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.4 1 2.5h6c0-1.1.3-1.8 1-2.5A6 6 0 0 0 12 3z"/></svg>
+      <span class="badge" id="bulbn" hidden></span>
+    </button>
+  </div>
   <div id="vp" tabindex="-1">
     <div id="stage" data-level="overview">
       <svg id="links"></svg>
@@ -172,12 +191,18 @@ input,textarea,select{width:100%;font:inherit;padding:10px;border:1px solid var(
    ========================================================= */
 const REASONS = ['天气','材料延误','人员不足','设计/甲方变更','检查未通过','审批','其他'];
 const UNDO_REASONS = ['误点','发现尾项','质量返工','其他'];
-const LABEL = {late:'逾期', today:'今日开始', soon:'即将开始', future:'未开始', done:'已完成'};
+const LABEL = {late:'逾期', today:'今日开始', soon:'即将开始', future:'未开始', done:'已完成', undated:'开始待定'};
 const EXPORT_VERSION = 1;
+const REMIND_WORKDAYS = 2;
 
 const pad = n => String(n).padStart(2, '0');
-const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const isoOf = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const todayISO = () => isoOf(new Date());
 const nowStr = () => { const d = new Date(); return `${todayISO()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const addDays = (iso, n) => { const d = new Date(iso+'T00:00'); d.setDate(d.getDate() + n); return isoOf(d); };
+const days = (a,b) => Math.round((new Date(a+'T00:00') - new Date(b+'T00:00')) / 864e5);
+const isWeekday = iso => { const w = new Date(iso+'T00:00').getDay(); return w > 0 && w < 6; };
+const short = d => d ? d.slice(5) : '待定';
 const uid = p => p + Math.random().toString(36).slice(2, 10);
 
 let idbPromise = null;
@@ -220,46 +245,71 @@ let TODAY = todayISO();
 
 async function persist(){ await kvPut('data', DB); }
 
+/* 旧数据补齐字段（新增的 expected_end、待定日期等） */
+function normalize(d){
+  d.projects = d.projects || [];
+  for (const p of d.projects){
+    p.tasks = p.tasks || [];
+    p.deleted_at = p.deleted_at ?? null;
+    for (const t of p.tasks){
+      t.project_id = t.project_id || p.id;
+      t.parent = t.parent ?? null;
+      t.planned = t.planned ?? null;
+      t.current = t.current ?? t.planned;
+      t.expected_end = t.expected_end ?? null;
+      t.done = !!t.done;
+      t.completedAt = t.completedAt ?? null;
+      t.deleted_at = t.deleted_at ?? null;
+      t.events = t.events || [];
+      t.photos = t.photos || [];
+      for (const ph of t.photos) ph.note = ph.note || '';
+    }
+  }
+  return d;
+}
+
 function seedDB(){
-  const T = (id, pid, name, parent, planned, current, done, completed, events) => ({
-    id, project_id: pid, name, parent, planned, current, done, completedAt: completed,
+  const T = (id, pid, name, parent, planned, current, expected, done, completed, events) => ({
+    id, project_id: pid, name, parent, planned, current, expected_end: expected, done, completedAt: completed,
     created_at: '2026-10-25 09:00', deleted_at: null, events, photos: []
   });
   const E = (at, title, reason, note) => ({at, title, reason: reason || null, note: note || ''});
   return {projects: [
     {id:'p1', name:'东区 3 号楼', created_at:'2026-10-15 09:00', deleted_at:null, tasks:[
-      T('t1','p1','钢筋绑扎（二层）',null,'2026-11-03','2026-11-15',false,null,[
+      T('t1','p1','钢筋绑扎（二层）',null,'2026-11-03','2026-11-15','2026-11-20',false,null,[
         E('2026-10-25','创建任务，计划开始 11-03'),
         E('2026-11-05','日期调整 11-03 → 11-08','材料延误','钢筋到场晚两天'),
         E('2026-11-12','日期调整 11-08 → 11-15','天气','连续降雨，无法露天作业')]),
-      T('t2','p1','模板安装（二层）',null,'2026-11-10','2026-11-17',false,null,[
+      T('t2','p1','模板安装（二层）',null,'2026-11-10','2026-11-17','2026-11-22',false,null,[
         E('2026-10-25','创建任务，计划开始 11-10'),
         E('2026-11-09','日期调整 11-10 → 11-17','人员不足','木工班组被调去其他工地')]),
-      T('t3','p1','混凝土浇筑（二层）',null,'2026-11-12','2026-11-19',false,null,[
+      T('t3','p1','混凝土浇筑（二层）',null,'2026-11-12','2026-11-19','2026-11-24',false,null,[
         E('2026-10-25','创建任务，计划开始 11-12'),
         E('2026-11-14','日期调整 11-12 → 11-19','检查未通过','隐蔽工程验收需整改')]),
-      T('t4','p1','水电预埋（一层）',null,'2026-10-20','2026-10-28',true,'2026-10-30',[
+      T('t4','p1','水电预埋（一层）',null,'2026-10-20','2026-10-28','2026-10-30',true,'2026-10-30',[
         E('2026-10-15','创建任务，计划开始 10-20'),
         E('2026-10-20','日期调整 10-20 → 10-28','人员不足','电工队伍调走一周'),
         E('2026-10-30','标记完成，完成时间 10-30',null,'录入于 2026-10-30')]),
-      T('t5','p1','外墙脚手架',null,'2026-11-25','2026-11-25',false,null,[
-        E('2026-10-25','创建任务，计划开始 11-25')])
+      T('t5','p1','外墙脚手架',null,'2026-11-25','2026-11-25','2026-12-02',false,null,[
+        E('2026-10-25','创建任务，计划开始 11-25')]),
+      T('t11','p1','外墙涂料（待定）',null,null,null,null,false,null,[
+        E('2026-10-25','创建任务，开始日期待定')])
     ]},
     {id:'p2', name:'西区地下车库', created_at:'2026-10-20 09:00', deleted_at:null, tasks:[
-      T('t6','p2','基坑支护验收',null,'2026-11-10','2026-11-14',true,'2026-11-14',[
+      T('t6','p2','基坑支护验收',null,'2026-11-10','2026-11-14','2026-11-16',true,'2026-11-14',[
         E('2026-10-30','创建任务，计划开始 11-10'),
         E('2026-11-08','日期调整 11-10 → 11-14','审批','监理审批延后'),
         E('2026-11-14','标记完成，完成时间 11-14',null,'录入于 2026-11-14')]),
-      T('t7','p2','土方开挖',null,'2026-11-18','2026-11-18',false,null,[
+      T('t7','p2','土方开挖',null,'2026-11-18','2026-11-18','2026-11-30',false,null,[
         E('2026-11-01','创建任务，计划开始 11-18')])
     ]},
     {id:'p3', name:'北区 1 号厂房', created_at:'2026-09-28 09:00', deleted_at:null, tasks:[
-      T('t8','p3','基础放线',null,'2026-10-05','2026-10-05',true,'2026-10-05',[
+      T('t8','p3','基础放线',null,'2026-10-05','2026-10-05','2026-10-05',true,'2026-10-05',[
         E('2026-09-28','创建任务，计划开始 10-05'),
         E('2026-10-05','标记完成，完成时间 10-05',null,'录入于 2026-10-05')]),
-      T('t9','p3','地基验收',null,'2026-11-16','2026-11-16',false,null,[
+      T('t9','p3','地基验收',null,'2026-11-16','2026-11-16','2026-11-17',false,null,[
         E('2026-10-20','创建任务，计划开始 11-16')]),
-      T('t10','p3','设备基础浇筑',null,'2026-11-22','2026-11-22',false,null,[
+      T('t10','p3','设备基础浇筑',null,'2026-11-22','2026-11-22','2026-11-28',false,null,[
         E('2026-10-20','创建任务，计划开始 11-22')])
     ]}
   ]};
@@ -267,16 +317,12 @@ function seedDB(){
 
 async function loadLocal(){
   let d = await kvGet('data');
-  if (!d){ d = seedDB(); DB = d; await persist(); }
-  DB = d;
-  for (const p of DB.projects) for (const t of p.tasks) for (const ph of t.photos){
-    const b = await kvGet('photo:' + ph.id);
-    ph.url = b ? URL.createObjectURL(b) : '';
-  }
+  if (!d){ d = seedDB(); await kvPut('data', d); }
+  DB = normalize(d);
+  await loadPhotoUrls();
 }
 
-/* ---------- 业务操作（与之前的服务器版规则一致） ---------- */
-const short = d => d ? d.slice(5) : '';
+/* ---------- 业务操作 ---------- */
 function taskOf(tid){
   for (const p of DB.projects){
     const t = p.tasks.find(x => x.id === tid && !x.deleted_at);
@@ -309,30 +355,54 @@ function createProject(name){
   DB.projects.push(p);
   return p.id;
 }
-function createTask({project_id, name, planned, parent_id}){
+function createTask({project_id, name, planned, expected_end, parent_id}){
   name = name.trim();
   if (!name) throw new Error('请输入任务名称');
-  if (!planned) throw new Error('请选择计划开始日期');
+  if (planned === '') throw new Error('请选择计划开始日期，或勾选“开始日期待定”');
+  planned = planned || null;
+  expected_end = expected_end || null;
+  if (planned && expected_end && expected_end < planned) throw new Error('预计完成不能早于计划开始日期');
   const p = DB.projects.find(x => x.id === project_id && !x.deleted_at);
   if (!p) throw new Error('项目不存在');
-  let title = `创建任务，计划开始 ${short(planned)}`;
+  let title = planned ? `创建任务，计划开始 ${short(planned)}` : '创建任务，开始日期待定';
   if (parent_id){
     const {t: parent} = needTask(parent_id);
-    title = `创建后续任务，接续「${parent.name}」，计划开始 ${short(planned)}`;
+    title = `创建延伸任务，接续「${parent.name}」，${planned ? `计划开始 ${short(planned)}` : '开始日期待定'}`;
   }
+  if (expected_end) title += `，预计完成 ${short(expected_end)}`;
   const t = {id: uid('t'), project_id, name, parent: parent_id || null, planned, current: planned,
-    done: false, completedAt: null, created_at: nowStr(), deleted_at: null,
+    expected_end, done: false, completedAt: null, created_at: nowStr(), deleted_at: null,
     events: [{at: TODAY, title}], photos: []};
   p.tasks.push(t);
   return t.id;
 }
+/* 调整开始日期：预计完成时间按相同天数顺延（或提前） */
 function changeDate(tid, {new_date, reason, note}){
   const {t} = needTask(tid);
   if (!new_date) throw new Error('请选择新日期');
   if (!REASONS.includes(reason)) throw new Error('请选择调整原因');
   if (new_date === t.current) throw new Error('新日期与当前安排相同');
-  t.events.push({at: TODAY, title: `日期调整 ${short(t.current)} → ${short(new_date)}`, reason, note: (note || '').trim()});
+  const old = t.current;
+  let title = old ? `日期调整 ${short(old)} → ${short(new_date)}` : `确定开始日期 ${short(new_date)}`;
+  if (old && t.expected_end){
+    const n = days(new_date, old);
+    if (n){
+      t.expected_end = addDays(t.expected_end, n);
+      title += `；预计完成随之${n > 0 ? '顺延' : '提前'} ${Math.abs(n)} 天，至 ${short(t.expected_end)}`;
+    }
+  }
+  t.events.push({at: TODAY, title, reason, note: (note || '').trim()});
   t.current = new_date;
+}
+/* 修改预计完成时间（可设为待定） */
+function changeExpectedEnd(tid, {new_end, reason, note}){
+  const {t} = needTask(tid);
+  const end = new_end || null;
+  if (!REASONS.includes(reason)) throw new Error('请选择调整原因');
+  if (end === (t.expected_end || null)) throw new Error('预计完成时间没有变化');
+  if (end && t.current && end < t.current) throw new Error('预计完成不能早于开始日期');
+  t.events.push({at: TODAY, title: `预计完成调整 ${short(t.expected_end)} → ${short(end)}`, reason, note: (note || '').trim()});
+  t.expected_end = end;
 }
 function completeTask(tid, {completed_on, time}){
   const {t} = needTask(tid);
@@ -355,7 +425,7 @@ function deleteTask(tid){
   for (const x of subtreeOf(p, tid)){
     const t = p.tasks.find(y => y.id === x);
     t.events.push({at: TODAY, title: `删除任务「${t.name}」`, reason: null,
-      note: x === tid ? '' : `作为「${root.name}」的后续任务一并删除`});
+      note: x === tid ? '' : `作为「${root.name}」的延伸任务一并删除`});
     t.deleted_at = nowStr();
   }
 }
@@ -368,6 +438,14 @@ function deleteProject(pid){
     t.deleted_at = nowStr();
   }
   p.deleted_at = nowStr();
+}
+/* 调整项目顺序：与相邻项目交换位置，项目下的任务随之移动 */
+function moveProject(pid, d){
+  const arr = DB.projects.filter(p => !p.deleted_at);
+  const i = arr.findIndex(p => p.id === pid), j = i + d;
+  if (i < 0 || j < 0 || j >= arr.length) return;
+  const a = DB.projects.indexOf(arr[i]), b = DB.projects.indexOf(arr[j]);
+  [DB.projects[a], DB.projects[b]] = [DB.projects[b], DB.projects[a]];
 }
 async function addPhoto(tid, file){
   const {t} = needTask(tid);
@@ -431,7 +509,7 @@ async function importData(file){
     const b = await (await fetch(dataUrl)).blob();
     await kvPut('photo:' + id, b);
   }
-  DB = {projects: data.projects || []};
+  DB = normalize({projects: data.projects || []});
   await persist();
   await loadPhotoUrls();
 }
@@ -457,10 +535,10 @@ let worldW = 0, worldH = 0, animT = null;
 let booted = false;
 
 const $ = s => document.querySelector(s);
-const days = (a,b) => Math.round((new Date(a+'T00:00') - new Date(b+'T00:00')) / 864e5);
 
 function statusOf(t){
   if (t.done) return 'done';
+  if (!t.current) return 'undated';
   const d = days(t.current, TODAY);
   if (d < 0) return 'late';
   if (d === 0) return 'today';
@@ -469,9 +547,27 @@ function statusOf(t){
 }
 function dev(t){
   if (!t.done) return '';
-  const d = days(t.completedAt, t.current);
+  const ref = t.current || t.expected_end;
+  if (!ref) return '';
+  const d = days(t.completedAt, ref);
   if (d === 0) return '按期完成';
   return d < 0 ? `提前 ${-d} 天` : `延后 ${d} 天`;
+}
+/* 距离安排开始还有几个工作日（不含今天，含开始当天）；已过开始日期返回 null */
+function workdaysLeft(start){
+  if (!start || start < TODAY) return null;
+  let n = 0;
+  for (let d = addDays(TODAY, 1); d <= start; d = addDays(d, 1)) if (isWeekday(d)) n++;
+  return n;
+}
+function remindList(){
+  const out = [];
+  for (const p of projects) for (const t of p.tasks){
+    if (t.done || !t.current) continue;
+    const n = workdaysLeft(t.current);
+    if (n !== null && n <= REMIND_WORKDAYS) out.push({p, t, n});
+  }
+  return out.sort((a, b) => a.t.current.localeCompare(b.t.current));
 }
 const pill = s => `<span class="pill ${s}">${LABEL[s]}</span>`;
 const find = (pid, tid) => {
@@ -499,12 +595,13 @@ function buildView(){
     ...p, tasks: p.tasks.filter(t => !t.deleted_at)
   }));
 }
+const keyOf = t => t.current || '9999-12-31';   // 未定开始日期的排在最后
 
 function placeTree(p, t, col, y){
   t.x = PW + GX + col*(TW+GX);
   t.y = y;
   const kids = p.tasks.filter(c => c.parent === t.id)
-    .sort((a,b) => a.current.localeCompare(b.current));
+    .sort((a,b) => keyOf(a).localeCompare(keyOf(b)));
   let cy = y;
   kids.forEach(k => { const kh = placeTree(p, k, col+1, cy); cy += kh + GY; });
   return Math.max(TH, cy - GY - y);
@@ -513,7 +610,7 @@ function layout(){
   let rowY = 0;
   projects.forEach(p => {
     const roots = p.tasks.filter(t => !t.parent)
-      .sort((a,b) => a.current.localeCompare(b.current));
+      .sort((a,b) => keyOf(a).localeCompare(keyOf(b)));
     let y = rowY;
     roots.forEach(r => { y += placeTree(p, r, 0, y) + GY; });
     const bandH = roots.length ? y - GY - rowY : 0;
@@ -545,7 +642,7 @@ function renderStage(){
   const projNodes = projects.map(p => {
     const open = p.tasks.filter(t => !t.done);
     const c = s => open.filter(t => statusOf(t) === s).length;
-    const soon = open.filter(t => { const d = days(t.current, TODAY); return d > 0 && d <= 3; }).length;
+    const soon = open.filter(t => t.current && days(t.current, TODAY) > 0 && days(t.current, TODAY) <= 3).length;
     return `<div class="pnode" role="button" tabindex="0" data-node="p" data-id="${p.id}"
         style="left:${p.x}px;top:${p.y}px;width:${PW}px;height:${PH}px;${p.id===state.focus?'border-color:var(--accent)':''}">
       <b>${escapeHtml(p.name)}</b>
@@ -562,7 +659,7 @@ function renderStage(){
     const s = statusOf(t);
     const sub = t.done
       ? `${pill(s)} 完成 ${short(t.completedAt)} · ${dev(t)}`
-      : `${pill(s)} 安排 ${short(t.current)} · 原计划 ${short(t.planned)}`;
+      : `${pill(s)} 安排 ${t.current ? short(t.current) : '待定'}${t.expected_end ? ` · 预计 ${short(t.expected_end)}` : ''}`;
     return `<div class="tnode ${s}" role="button" tabindex="0" data-node="t" data-id="${t.id}" data-p="${p.id}"
         style="left:${t.x}px;top:${t.y}px;width:${TW}px;height:${TH}px">
       <div class="tn-name">${escapeHtml(t.name)}</div>
@@ -573,12 +670,22 @@ function renderStage(){
   $('#nodes').innerHTML = projNodes + taskNodes;
 }
 
+function updateBulb(){
+  const n = remindList().length;
+  $('#bulb').classList.toggle('on', n > 0);
+  const badge = $('#bulbn');
+  badge.hidden = !n;
+  badge.textContent = n;
+}
+
 function refresh(){
+  TODAY = todayISO();
   buildView();
   layout();
   renderStage();
   if (state.detail) renderDetail();
   apply();
+  updateBulb();
 }
 
 const vp = $('#vp'), stage = $('#stage');
@@ -590,6 +697,7 @@ function apply(){
   const f = state.focus && projects.find(x => x.id === state.focus);
   $('#crumb').textContent = f ? f.name : '全部项目';
   $('#delproj').hidden = !f;
+  $('#sortbtn').hidden = projects.length < 2;
 }
 function animateTo(x, y, s){
   stage.classList.add('anim');
@@ -730,22 +838,26 @@ function renderDetail(){
   const s = statusOf(t);
   const actions = t.done
     ? `<button class="btn ghost" onclick="openUndo()">撤销完成</button>
-       <button class="btn" onclick="openNew('${t.id}')">＋ 新增后续任务</button>`
-    : `<button class="btn ghost" onclick="openAdjust()">调整日期</button>
-       <button class="btn" onclick="openComplete()">标记完成</button>`;
+       <button class="btn" onclick="openNew('${t.id}')">＋ 新增延伸任务</button>`
+    : `<button class="btn ghost" onclick="openAdjust()">${t.current ? '调整日期' : '确定开始日期'}</button>
+       <button class="btn ghost" onclick="openExpectedEnd()">修改预计完成</button>
+       <button class="btn" onclick="openComplete()">标记完成</button>
+       <button class="btn ghost" onclick="openNew('${t.id}')">＋ 新增延伸任务</button>`;
   const prev = t.parent ? p.tasks.find(x => x.id === t.parent) : null;
   const tl = t.events.map(e => `<li>
       <span class="tdate">${e.at}</span>
       <div><b>${escapeHtml(e.title)}</b>${e.reason ? `<span class="rs">${escapeHtml(e.reason)}</span>` : ''}</div>
       ${e.note ? `<div class="muted">${escapeHtml(e.note)}</div>` : ''}</li>`).join('');
+  const d = dev(t);
   $('#dmain').innerHTML = `
     <section class="card">
       <div class="row"><b>${escapeHtml(t.name)}</b>${pill(s)}</div>
       <dl class="kv">
-        <dt>原始计划开始</dt><dd>${t.planned}</dd>
-        <dt>当前安排开始</dt><dd>${t.current}</dd>
+        <dt>原始计划开始</dt><dd>${short(t.planned)}</dd>
+        <dt>当前安排开始</dt><dd>${short(t.current)}</dd>
+        <dt>预计完成</dt><dd>${short(t.expected_end)}</dd>
         ${prev ? `<dt>接续于</dt><dd>${escapeHtml(prev.name)}</dd>` : ''}
-        ${t.done ? `<dt>完成时间</dt><dd>${t.completedAt}（${dev(t)}）</dd>` : ''}
+        ${t.done ? `<dt>完成时间</dt><dd>${t.completedAt}${d ? `（${d}）` : ''}</dd>` : ''}
       </dl>
     </section>
     ${photoSection(t)}
@@ -768,6 +880,14 @@ function sheet(title, body, onsave, label = '保存', danger = false){
 }
 function closeSheet(){ $('#scrim').hidden = true; $('#sheet').hidden = true; }
 
+/* 日期输入 + “待定”勾选：勾选待定时输入框禁用，读取时返回 null */
+function dateRow(label, id, cbId, value, tbdDefault, tbdText){
+  return `<label class="fld">${label}<input type="date" id="${id}" value="${value || ''}" ${tbdDefault ? 'disabled' : ''}></label>
+    <label class="tbd"><input type="checkbox" id="${cbId}" ${tbdDefault ? 'checked' : ''} onchange="syncTbd('${id}','${cbId}')">${tbdText}</label>`;
+}
+function syncTbd(id, cbId){ $('#' + id).disabled = $('#' + cbId).checked; }
+function readDate(id, cbId){ return $('#' + cbId).checked ? null : $('#' + id).value; }
+
 /* 执行一次修改：成功则保存、关闭弹层并刷新；失败则在弹层里显示原因 */
 async function commit(action, afterOk){
   try{
@@ -781,16 +901,41 @@ async function commit(action, afterOk){
 
 function openAdjust(){
   const {t} = find(state.pid, state.tid);
-  sheet('调整日期', `
-    <label class="fld">新的开始日期<input type="date" id="f-date" value="${t.current}"></label>
+  sheet(t.current ? '调整日期' : '确定开始日期', `
+    <label class="fld">${t.current ? '新的开始日期' : '开始日期'}<input type="date" id="f-date" value="${t.current || ''}" oninput="updateShift()"></label>
+    <p class="muted" id="f-shift"></p>
     <p class="fld-l">调整原因（必选）</p>${chips('reason', REASONS)}
     <label class="fld">补充说明<textarea id="f-note" rows="2" placeholder="例如：钢筋到场晚两天"></textarea></label>`,
     'saveAdjust()');
+}
+function updateShift(){
+  const {t} = find(state.pid, state.tid);
+  const el = $('#f-shift');
+  if (!el) return;
+  const nd = $('#f-date').value;
+  if (!t.current || !nd || nd === t.current){ el.textContent = ''; return; }
+  if (!t.expected_end){ el.textContent = '还没有预计完成时间，调整后不会自动移动。'; return; }
+  const n = days(nd, t.current);
+  el.textContent = `预计完成将${n > 0 ? '顺延' : '提前'} ${Math.abs(n)} 天：${short(t.expected_end)} → ${short(addDays(t.expected_end, n))}`;
 }
 function saveAdjust(){
   const d = $('#f-date').value, r = checked('reason'), note = $('#f-note').value;
   if (!r) return err('请选择调整原因');
   commit(() => changeDate(state.tid, {new_date: d, reason: r.value, note}));
+}
+
+function openExpectedEnd(){
+  const {t} = find(state.pid, state.tid);
+  sheet('修改预计完成', `
+    ${dateRow('预计完成时间', 'f-end', 'f-end-tbd', t.expected_end, !t.expected_end, '预计完成待定')}
+    <p class="fld-l">调整原因（必选）</p>${chips('reason', REASONS)}
+    <label class="fld">补充说明<textarea id="f-note" rows="2"></textarea></label>`,
+    'saveExpectedEnd()');
+}
+function saveExpectedEnd(){
+  const r = checked('reason');
+  if (!r) return err('请选择调整原因');
+  commit(() => changeExpectedEnd(state.tid, {new_end: readDate('f-end', 'f-end-tbd'), reason: r.value, note: $('#f-note').value}));
 }
 
 function openComplete(){
@@ -816,25 +961,29 @@ function saveUndo(){
   commit(() => undoTask(state.tid, {reason: r.value, note: $('#f-note').value}));
 }
 
+/* 新增任务表单（顶层任务与延伸任务共用） */
+function taskFields(showProject, startDef, pid){
+  const proj = showProject
+    ? `<label class="fld">所属项目<select id="f-proj">${projects.map(p =>
+        `<option value="${p.id}" ${p.id===pid?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select></label>`
+    : '';
+  return `${proj}
+    <label class="fld">任务名称<input id="f-name" placeholder="例如：砌砖墙（一层）"></label>
+    ${dateRow('计划开始日期', 'f-date', 'f-date-tbd', startDef, false, '开始日期待定')}
+    ${dateRow('预计完成时间', 'f-end', 'f-end-tbd', '', true, '预计完成待定')}`;
+}
 function openNew(parentId){
   newParent = parentId;
   if (!projects.length){ toast('请先新建一个项目'); openProject(); return; }
-  let body, title;
-  const pid = state.focus || projects[0].id;
   if (parentId){
     const {t} = needView(parentId);
-    title = '新增后续任务';
-    body = `<p class="muted">接续于「${escapeHtml(t.name)}」，将显示在它的右侧一格。</p>
-      <label class="fld">任务名称<input id="f-name" placeholder="例如：砌砖墙（一层）"></label>
-      <label class="fld">计划开始日期<input type="date" id="f-date" value="${t.completedAt || TODAY}"></label>`;
+    const def = t.done ? t.completedAt : (t.expected_end || t.current || TODAY);
+    sheet('新增延伸任务', `<p class="muted">接续于「${escapeHtml(t.name)}」，将显示在它的右侧一格。未完成的任务也可以先加。</p>
+      ${taskFields(false, def)}`, 'saveNew()', '添加');
   } else {
-    title = '新增任务';
-    body = `<label class="fld">所属项目<select id="f-proj">${projects.map(p =>
-      `<option value="${p.id}" ${p.id===pid?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select></label>
-      <label class="fld">任务名称<input id="f-name" placeholder="例如：砌砖墙（一层）"></label>
-      <label class="fld">计划开始日期<input type="date" id="f-date" value="${TODAY}"></label>`;
+    const pid = state.focus || projects[0].id;
+    sheet('新增任务', taskFields(true, TODAY, pid), 'saveNew()', '添加');
   }
-  sheet(title, body, 'saveNew()', '添加');
 }
 function needView(tid){
   const {p, t} = taskOf(tid);
@@ -843,10 +992,11 @@ function needView(tid){
 }
 function saveNew(){
   const parent = newParent;
-  const name = $('#f-name').value, planned = $('#f-date').value;
+  const name = $('#f-name').value;
+  const planned = readDate('f-date', 'f-date-tbd');
+  const expected_end = readDate('f-end', 'f-end-tbd') || null;
   const pid = parent ? needView(parent).p.id : $('#f-proj').value;
-  let newId = null;
-  commit(() => { newId = createTask({project_id: pid, name, planned, parent_id: parent}); },
+  commit(() => { createTask({project_id: pid, name, planned, expected_end, parent_id: parent}); },
     () => { if (parent) closeDetail(); zoomToProject(pid); });
 }
 
@@ -859,10 +1009,43 @@ function saveProject(){
   commit(() => { id = createProject($('#f-name').value); }, () => zoomToProject(id));
 }
 
+/* 项目排序 */
+function openSort(){
+  if (projects.length < 2){ toast('至少两个项目才需要排序'); return; }
+  const list = projects;
+  sheet('调整项目顺序', `<p class="muted">项目会按这里的顺序从上到下排列，项目下的任务会跟着一起移动。</p>` +
+    list.map((p, i) => `<div class="row sortrow"><span>${i+1}. ${escapeHtml(p.name)}</span>
+      <span><button class="mini" onclick="reorder('${p.id}',-1)" aria-label="上移" ${i===0?'disabled':''}>▲</button><button class="mini" onclick="reorder('${p.id}',1)" aria-label="下移" ${i===list.length-1?'disabled':''}>▼</button></span></div>`).join(''),
+    'closeSheet()', '完成');
+}
+async function reorder(pid, d){
+  moveProject(pid, d);
+  await persist();
+  refresh();
+  openSort();
+}
+
+/* 提醒：未完成、尚未开始，且距离安排开始只剩 2 个工作日以内 */
+function openReminders(){
+  const list = remindList();
+  const body = list.length
+    ? list.map(({p, t, n}) => `<button class="rem" onclick="openFromRemind('${p.id}','${t.id}')">
+        <b>${escapeHtml(t.name)}</b>
+        <span class="muted">${escapeHtml(p.name)} · 安排开始 ${t.current}${t.expected_end ? ` · 预计完成 ${t.expected_end}` : ''}</span>
+        <span class="pill soon">${n ? `还有 ${n} 个工作日开始` : '今天开始'}</span></button>`).join('')
+    : '<p class="muted">近期没有需要提醒的任务。</p>';
+  sheet('提醒', `<p class="muted">规则：未完成、尚未开始，且距离安排开始日期只剩 ${REMIND_WORKDAYS} 个工作日以内（周一至周五，暂未扣除节假日）。</p>${body}`,
+    'closeSheet()', '关闭');
+}
+function openFromRemind(pid, tid){
+  closeSheet();
+  openDetail(pid, tid);
+}
+
 function openDelTask(){
   const {p, t} = find(state.pid, state.tid);
   const n = subtreeOf(p, t.id).length - 1;
-  sheet('删除任务', `<p>将从地图中删除「${escapeHtml(t.name)}」${n ? `，以及它之后的 ${n} 个后续任务` : ''}。</p>
+  sheet('删除任务', `<p>将从地图中删除「${escapeHtml(t.name)}」${n ? `，以及它之后的 ${n} 个延伸任务` : ''}。</p>
     <p class="muted">删除后不会出现在地图和提醒中，历史记录仍保留在本机数据中。</p>`,
     'confirmDelTask()', '确认删除', true);
 }
